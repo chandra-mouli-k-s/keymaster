@@ -150,6 +150,25 @@ func main() {
     dispatchMain()
   }
 
+  if (action == "update") {
+    context.evaluatePolicy(policy, localizedReason: "update your password") { success, error in
+      if success && error == nil {
+        guard updatePassword(key: key, password: secret) else {
+          print("Error: Key '\(key)' does not exist or failed to update")
+          print("Use 'set' command to create a new key or check if the key exists")
+          exit(EXIT_FAILURE)
+        }
+        print("Key \(key) has been successfully updated in the keychain")
+        exit(EXIT_SUCCESS)
+      } else {
+        let errorDescription = error?.localizedDescription ?? "Unknown error"
+        print("Error \(errorDescription)")
+        exit(EXIT_FAILURE)
+      }
+    }
+    dispatchMain()
+  }
+
   if (action == "get") {
     context.evaluatePolicy(policy, localizedReason: "access to your password") { success, error in
       if success {
@@ -161,6 +180,40 @@ func main() {
         exit(EXIT_SUCCESS)
       } else {
         print("Authentication failed or was canceled: \(error?.localizedDescription ?? "Unknown error")")
+        exit(EXIT_FAILURE)
+      }
+    }
+    dispatchMain()
+  }
+
+  if (action == "get-many") {
+    let keys = Array(inputArgs.dropFirst()) // Get all keys after "get-many"
+    context.evaluatePolicy(policy, localizedReason: "access to your passwords") { success, error in
+      if success && error == nil {
+        var allFound = true
+        var results: [String] = []
+        
+        for key in keys {
+          if let password = getPassword(key: key) {
+            results.append("\(key)=\(password)")
+          } else {
+            print("Error getting password for key: \(key)")
+            allFound = false
+            break
+          }
+        }
+        
+        if allFound {
+          for result in results {
+            print(result)
+          }
+          exit(EXIT_SUCCESS)
+        } else {
+          exit(EXIT_FAILURE)
+        }
+      } else {
+        let errorDescription = error?.localizedDescription ?? "Unknown error"
+        print("Error \(errorDescription)")
         exit(EXIT_FAILURE)
       }
     }
